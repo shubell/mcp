@@ -1,31 +1,35 @@
+
 services:
-  mariadb-server:
-    image: mariadb:11
-    container_name: mariadb
-    environment:
-      MARIADB_ROOT_PASSWORD: rootpassword123
-      MARIADB_DATABASE: demo
-      MARIADB_USER: user
-      MARIADB_PASSWORD: password123
-    ports:
-      - "3306:3306"
-    healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-p'rootpassword123'"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
   mariadb-mcp:
-    # asyncmy wheels crash with SIGILL on native arm64 Docker (Apple Silicon).
-    # Build and run as linux/amd64 only.
     platform: linux/amd64
     build:
       context: .
-      platforms:
-        - linux/amd64
+      dockerfile: Dockerfile
     container_name: mariadb-mcp
-    env_file: .env
+    restart: unless-stopped
+
     ports:
       - "9001:9001"
-    depends_on:
-      mariadb-server:
-        condition: service_healthy
+
+    environment:
+      DB_HOST: "${DB_HOST}"
+      DB_PORT: "${DB_PORT:-3306}"
+      DB_USER: "${DB_USER}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      DB_NAME: "${DB_NAME:-}"
+      MCP_READ_ONLY: "${MCP_READ_ONLY:-true}"
+      MCP_MAX_POOL_SIZE: "${MCP_MAX_POOL_SIZE:-10}"
+      MCP_BLOCK_SENSITIVE_SHOW: "${MCP_BLOCK_SENSITIVE_SHOW:-true}"
+      ALLOWED_HOSTS: "${ALLOWED_HOSTS:-localhost,127.0.0.1,10.0.20.189}"
+
+    command:
+      - python
+      - src/server.py
+      - --host
+      - 0.0.0.0
+      - --transport
+      - http
+      - --port
+      - "9001"
+      - --path
+      - /mcp
